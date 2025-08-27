@@ -49,7 +49,15 @@ Esta aplicación es un sencillo programa de chat punto a punto diseñado para qu
 
    La aplicación solicitará un **nombre de usuario** y, a continuación, mostrará un diálogo para elegir el modo **servidor** o **cliente** y solicitará la dirección IP y el puerto correspondientes.
 
-5. **Conectarse y chatear:**
+5. **(Opcional) Usar código de conexión:**
+
+   - Ejecuta `python relay_server.py` en un equipo accesible por ambos usuarios. Este programa actúa como un pequeño servidor de reunión.
+   - Al iniciar en modo servidor, puedes elegir generar un código; compártelo con tu contacto.
+   - El cliente puede seleccionar "Conectarse usando un código de conexión" e introducirlo para obtener la dirección y puerto automáticamente.
+   - El código se consume tras su primer uso y evita revelar tu dirección IP directamente.
+   - El programa busca el servidor de reunión en `http://localhost:8000`; puedes cambiarlo con la variable de entorno `SC_BROKER_URL`.
+
+6. **Conectarse y chatear:**
 
    - En el ordenador que actuará como servidor seleccione **Servidor**, elija un puerto (por defecto 5000) y pulse **Iniciar**.
    - En el ordenador que actuará como cliente seleccione **Cliente**, introduzca la dirección IP del servidor y el mismo puerto, y pulse **Conectar**.

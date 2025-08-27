@@ -27,6 +27,8 @@ import queue
 import base64
 import tkinter as tk
 from tkinter import simpledialog, messagebox, scrolledtext
+import json
+from urllib import request
 
 try:
     import numpy as np  # type: ignore
@@ -37,6 +39,9 @@ try:
 except Exception:  # pragma: no cover - fallback when sounddevice is missing
     sd = None  # type: ignore
 from cryptography.fernet import Fernet
+
+
+BROKER_URL = os.environ.get("SC_BROKER_URL", "http://localhost:8000")
 
 
 class SecureChatApp:
@@ -246,25 +251,65 @@ class SecureChatApp:
                 messagebox.showerror("Error", f"Error al iniciar servidor: {e}")
                 self.master.destroy()
                 return
+            if messagebox.askyesno(
+                "Código de conexión",
+                "¿Deseas generar un código para que el cliente se conecte?",
+            ):
+                try:
+                    ip = socket.gethostbyname(socket.gethostname())
+                    code = self.register_code(ip, port)
+                    self.append_message(f"[Sistema] Código de conexión: {code}\n")
+                    messagebox.showinfo(
+                        "Código de conexión",
+                        f"Comparte este código con tu contacto: {code}",
+                    )
+                except Exception as e:
+                    messagebox.showwarning(
+                        "Advertencia",
+                        f"No se pudo registrar el código: {e}",
+                    )
         else:
-            # Cliente: solicitar dirección y puerto
-            host = simpledialog.askstring(
-                "Dirección IP",
-                "Introduce la dirección IP o nombre del servidor",
-                parent=self.master
+            # Cliente: usar código o IP/puerto
+            use_code = messagebox.askyesno(
+                "Conexión",
+                "¿Conectarse usando un código de conexión?",
             )
-            if host is None:
-                self.master.destroy()
-                return
-            port = simpledialog.askinteger(
-                "Puerto",
-                "Introduce el puerto del servidor",
-                initialvalue=5000,
-                parent=self.master
-            )
-            if port is None:
-                self.master.destroy()
-                return
+            if use_code:
+                code = simpledialog.askstring(
+                    "Código",
+                    "Introduce el código de conexión",
+                    parent=self.master,
+                )
+                if code is None:
+                    self.master.destroy()
+                    return
+                try:
+                    host, port = self.resolve_code(code.strip())
+                except Exception as e:
+                    messagebox.showerror(
+                        "Error",
+                        f"No se pudo resolver el código: {e}",
+                    )
+                    self.master.destroy()
+                    return
+            else:
+                host = simpledialog.askstring(
+                    "Dirección IP",
+                    "Introduce la dirección IP o nombre del servidor",
+                    parent=self.master,
+                )
+                if host is None:
+                    self.master.destroy()
+                    return
+                port = simpledialog.askinteger(
+                    "Puerto",
+                    "Introduce el puerto del servidor",
+                    initialvalue=5000,
+                    parent=self.master,
+                )
+                if port is None:
+                    self.master.destroy()
+                    return
             try:
                 self.connect_to_server(host.strip(), port)
             except Exception as e:
@@ -273,6 +318,24 @@ class SecureChatApp:
                 return
 
     # Conexión y comunicación
+    def register_code(self, ip: str, port: int) -> str:
+        """Registra el par IP/puerto en el servidor de reunión y devuelve un código."""
+        data = json.dumps({"ip": ip, "port": port}).encode("utf-8")
+        req = request.Request(
+            f"{BROKER_URL}/register",
+            data=data,
+            headers={"Content-Type": "application/json"},
+        )
+        with request.urlopen(req, timeout=5) as resp:
+            res = json.load(resp)
+        return res.get("code", "")
+
+    def resolve_code(self, code: str) -> tuple[str, int]:
+        """Obtiene la dirección asociada a un código en el servidor de reunión."""
+        with request.urlopen(f"{BROKER_URL}/lookup/{code}", timeout=5) as resp:
+            res = json.load(resp)
+        return res["ip"], int(res["port"])
+
     def start_server(self, port: int) -> None:
         """Inicia el servidor y espera una conexión."""
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

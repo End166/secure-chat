@@ -28,11 +28,14 @@ import base64
 import tkinter as tk
 from tkinter import simpledialog, messagebox, scrolledtext
 
-import numpy as np
+try:
+    import numpy as np  # type: ignore
+except Exception:  # pragma: no cover - fallback when numpy is missing
+    np = None  # type: ignore
 try:
     import sounddevice as sd  # type: ignore
 except Exception:  # pragma: no cover - fallback when sounddevice is missing
-    sd = None
+    sd = None  # type: ignore
 from cryptography.fernet import Fernet
 
 
@@ -71,7 +74,7 @@ class SecureChatApp:
 
         # Voz
         self.voice_streaming = False
-        self.voice_enabled = sd is not None
+        self.voice_enabled = sd is not None and np is not None
         self.play_stream = None
 
         # Interfaz gráfica
@@ -353,9 +356,9 @@ class SecureChatApp:
                         continue
                     if token.startswith(b'VOICE:'):
                         b64 = token[6:]
-                        if sd is None:
+                        if sd is None or np is None:
                             self.msg_queue.put(
-                                "[Voz] Audio recibido pero sounddevice no está disponible\n"
+                                "[Voz] Audio recibido pero sounddevice o numpy no están disponibles\n"
                             )
                             continue
                         try:
@@ -464,7 +467,8 @@ class SecureChatApp:
         """Inicia o detiene el envío de audio."""
         if not self.voice_enabled:
             messagebox.showwarning(
-                "Voz no disponible", "sounddevice no está instalado o no hay dispositivo de audio."
+                "Voz no disponible",
+                "sounddevice o numpy no están instalados o no hay dispositivo de audio.",
             )
             return
         if self.voice_streaming:
@@ -494,8 +498,8 @@ class SecureChatApp:
 
     def capture_voice(self) -> None:
         """Captura audio del micrófono y lo envía al compañero."""
-        if sd is None:
-            self.msg_queue.put("[Error voz] sounddevice no disponible\n")
+        if sd is None or np is None:
+            self.msg_queue.put("[Error voz] sounddevice o numpy no disponibles\n")
             return
         try:
             with sd.InputStream(samplerate=44100, channels=1, dtype='float32') as stream:

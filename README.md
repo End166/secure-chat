@@ -20,7 +20,7 @@ Esta aplicación es un sencillo programa de chat punto a punto diseñado para qu
   ```bash
   pip install -r requirements.txt
   ```
-  La biblioteca `sounddevice` es opcional y solo se utiliza para el chat de voz.
+  Las bibliotecas `sounddevice` y `numpy` son opcionales y solo se utilizan para el chat de voz.
 
 ## Uso
 
@@ -54,7 +54,7 @@ Esta aplicación es un sencillo programa de chat punto a punto diseñado para qu
    - En el ordenador que actuará como servidor seleccione **Servidor**, elija un puerto (por defecto 5000) y pulse **Iniciar**.
    - En el ordenador que actuará como cliente seleccione **Cliente**, introduzca la dirección IP del servidor y el mismo puerto, y pulse **Conectar**.
    - Ambos usuarios pueden escribir mensajes en la parte inferior y estos aparecerán cifrados en la red y descifrados al llegar al destinatario.
-   - Con el botón **Voz** es posible iniciar o detener el envío de audio para un chat de voz sencillo. Este botón estará deshabilitado si la biblioteca `sounddevice` no está disponible.
+   - Con el botón **Voz** es posible iniciar o detener el envío de audio para un chat de voz sencillo. Este botón estará deshabilitado si `sounddevice` o `numpy` no están disponibles.
 
 ### Ejecutar en Replit
 

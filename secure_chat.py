@@ -27,8 +27,8 @@ import queue
 import base64
 import tkinter as tk
 from tkinter import simpledialog, messagebox, scrolledtext
-import json
-from urllib import request
+import random
+import string
 
 try:
     import numpy as np  # type: ignore
@@ -41,7 +41,8 @@ except Exception:  # pragma: no cover - fallback when sounddevice is missing
 from cryptography.fernet import Fernet
 
 
-BROKER_URL = os.environ.get("SC_BROKER_URL", "http://localhost:8000")
+RELAY_HOST = os.environ.get("SC_RELAY_HOST", "localhost")
+RELAY_PORT = int(os.environ.get("SC_RELAY_PORT", "7000"))
 
 
 class SecureChatApp:
@@ -76,6 +77,8 @@ class SecureChatApp:
         # Socket de red
         self.conn = None  # tipo: socket.socket | None
         self.receiver_thread = None
+        self.relay_mode = False
+        self.room_code = ""
 
         # Voz
         self.voice_streaming = False
@@ -235,46 +238,46 @@ class SecureChatApp:
             return
 
         if mode == "servidor":
-            # Solicitar puerto
-            port = simpledialog.askinteger(
-                "Puerto",
-                "Introduce el puerto para escuchar (por defecto 5000)",
-                initialvalue=5000,
-                parent=self.master
-            )
-            if port is None:
-                self.master.destroy()
-                return
-            try:
-                self.start_server(port)
-            except Exception as e:
-                messagebox.showerror("Error", f"Error al iniciar servidor: {e}")
-                self.master.destroy()
-                return
-            if messagebox.askyesno(
-                "Código de conexión",
-                "¿Deseas generar un código para que el cliente se conecte?",
-            ):
-                try:
-                    ip = socket.gethostbyname(socket.gethostname())
-                    code = self.register_code(ip, port)
-                    self.append_message(f"[Sistema] Código de conexión: {code}\n")
-                    messagebox.showinfo(
-                        "Código de conexión",
-                        f"Comparte este código con tu contacto: {code}",
-                    )
-                except Exception as e:
-                    messagebox.showwarning(
-                        "Advertencia",
-                        f"No se pudo registrar el código: {e}",
-                    )
-        else:
-            # Cliente: usar código o IP/puerto
-            use_code = messagebox.askyesno(
+            use_relay = messagebox.askyesno(
                 "Conexión",
-                "¿Conectarse usando un código de conexión?",
+                "¿Usar servidor de retransmisión?",
             )
-            if use_code:
+            if use_relay:
+                self.relay_mode = True
+                self.room_code = self.register_code()
+                messagebox.showinfo(
+                    "Código de conexión",
+                    f"Comparte este código con tu contacto: {self.room_code}",
+                )
+                try:
+                    self.start_server(0)
+                except Exception as e:
+                    messagebox.showerror("Error", f"Error al conectar con el relay: {e}")
+                    self.master.destroy()
+                    return
+            else:
+                port = simpledialog.askinteger(
+                    "Puerto",
+                    "Introduce el puerto para escuchar (por defecto 5000)",
+                    initialvalue=5000,
+                    parent=self.master
+                )
+                if port is None:
+                    self.master.destroy()
+                    return
+                try:
+                    self.start_server(port)
+                except Exception as e:
+                    messagebox.showerror("Error", f"Error al iniciar servidor: {e}")
+                    self.master.destroy()
+                    return
+        else:
+            use_relay = messagebox.askyesno(
+                "Conexión",
+                "¿Conectarse usando un servidor de retransmisión?",
+            )
+            if use_relay:
+                self.relay_mode = True
                 code = simpledialog.askstring(
                     "Código",
                     "Introduce el código de conexión",
@@ -284,12 +287,10 @@ class SecureChatApp:
                     self.master.destroy()
                     return
                 try:
-                    host, port = self.resolve_code(code.strip())
+                    self.room_code = self.resolve_code(code)
+                    self.connect_to_server("", 0)
                 except Exception as e:
-                    messagebox.showerror(
-                        "Error",
-                        f"No se pudo resolver el código: {e}",
-                    )
+                    messagebox.showerror("Error", f"No se pudo conectar al relay: {e}")
                     self.master.destroy()
                     return
             else:
@@ -310,34 +311,51 @@ class SecureChatApp:
                 if port is None:
                     self.master.destroy()
                     return
-            try:
-                self.connect_to_server(host.strip(), port)
-            except Exception as e:
-                messagebox.showerror("Error", f"Error al conectar con el servidor: {e}")
-                self.master.destroy()
-                return
+                try:
+                    self.connect_to_server(host.strip(), port)
+                except Exception as e:
+                    messagebox.showerror("Error", f"Error al conectar con el servidor: {e}")
+                    self.master.destroy()
+                    return
 
     # Conexión y comunicación
-    def register_code(self, ip: str, port: int) -> str:
-        """Registra el par IP/puerto en el servidor de reunión y devuelve un código."""
-        data = json.dumps({"ip": ip, "port": port}).encode("utf-8")
-        req = request.Request(
-            f"{BROKER_URL}/register",
-            data=data,
-            headers={"Content-Type": "application/json"},
-        )
-        with request.urlopen(req, timeout=5) as resp:
-            res = json.load(resp)
-        return res.get("code", "")
+    def register_code(self) -> str:
+        """Genera un código de seis dígitos para el modo relay."""
+        return "".join(random.choices(string.digits, k=6))
 
-    def resolve_code(self, code: str) -> tuple[str, int]:
-        """Obtiene la dirección asociada a un código en el servidor de reunión."""
-        with request.urlopen(f"{BROKER_URL}/lookup/{code}", timeout=5) as resp:
-            res = json.load(resp)
-        return res["ip"], int(res["port"])
+    def resolve_code(self, code: str) -> str:
+        """Valida un código de seis dígitos antes de usar el relay."""
+        code = code.strip()
+        if len(code) != 6 or not code.isdigit():
+            raise ValueError("Código inválido")
+        return code
+
+    def connect_via_relay(self, code: str) -> socket.socket:
+        """Conecta con el servidor de retransmisión usando un código."""
+        conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        conn.connect((RELAY_HOST, RELAY_PORT))
+        conn.sendall(code.encode("utf-8") + b"\n")
+        buffer = b""
+        while b"\n" not in buffer:
+            data = conn.recv(1024)
+            if not data:
+                raise ConnectionError("Relay cerrado")
+            buffer += data
+        line, _ = buffer.split(b"\n", 1)
+        if line.strip() != b"READY":
+            raise ConnectionError("Relay rechazó la conexión")
+        return conn
 
     def start_server(self, port: int) -> None:
-        """Inicia el servidor y espera una conexión."""
+        """Inicia el servidor directo o conecta mediante relay."""
+        if getattr(self, "relay_mode", False):
+            conn = self.connect_via_relay(self.room_code)
+            self.conn = conn
+            self.append_message("[Sistema] Conectado mediante relay\n")
+            self.receiver_thread = threading.Thread(target=self.receive_messages, daemon=True)
+            self.receiver_thread.start()
+            self.send_username()
+            return
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server_socket.bind(("", port))
@@ -366,7 +384,15 @@ class SecureChatApp:
         self.send_username()
 
     def connect_to_server(self, host: str, port: int) -> None:
-        """Se conecta a un servidor existente."""
+        """Se conecta a un servidor existente o al relay."""
+        if getattr(self, "relay_mode", False):
+            conn = self.connect_via_relay(self.room_code)
+            self.conn = conn
+            self.append_message("[Sistema] Conectado mediante relay\n")
+            self.receiver_thread = threading.Thread(target=self.receive_messages, daemon=True)
+            self.receiver_thread.start()
+            self.send_username()
+            return
         conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         conn.connect((host, port))
         self.append_message(f"[Sistema] Conectado al servidor {host}:{port}\n")

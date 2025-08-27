@@ -7,6 +7,7 @@ Esta aplicación es un sencillo programa de chat punto a punto diseñado para qu
 - **Interfaz de usuario similar a Discord**: utiliza una ventana oscura con una columna lateral para los usuarios conectados y un área principal para el chat.
 - **Comunicación cifrada**: todo el texto que viaja por la red se cifra utilizando el algoritmo **Fernet** de la biblioteca [`cryptography`](https://cryptography.io/). Para que dos usuarios puedan comunicarse, ambos deben compartir la misma clave secreta.
 - **Modo servidor/cliente**: la aplicación permite actuar como servidor (espera conexiones) o como cliente (se conecta a un servidor). Solo se necesita ejecutar un servidor y un cliente para iniciar la conversación.
+- **Modo relay opcional**: ambos usuarios pueden conectarse a un servidor de retransmisión empleando un código de sala, sin compartir direcciones IP.
 - **Compatibilidad con Windows**: el programa está escrito en Python 3 y utiliza la biblioteca estándar junto con `cryptography` y `tkinter`, por lo que puede ejecutarse en Windows. Para empaquetarlo como ejecutable de Windows se pueden usar herramientas como `pyinstaller` (no incluida en este proyecto).
 - **Chat de voz opcional**: permite enviar audio en tiempo real mediante un botón dedicado.
 - **Mensajes coloreados y entrada con sugerencia**: los mensajes del sistema, del usuario local y del remoto se muestran con colores diferentes y el campo de entrada incluye un placeholder que guía al usuario.
@@ -49,13 +50,14 @@ Esta aplicación es un sencillo programa de chat punto a punto diseñado para qu
 
    La aplicación solicitará un **nombre de usuario** y, a continuación, mostrará un diálogo para elegir el modo **servidor** o **cliente** y solicitará la dirección IP y el puerto correspondientes.
 
-5. **(Opcional) Usar código de conexión:**
+5. **(Opcional) Conectarse a través de un servidor de retransmisión:**
 
-   - Ejecuta `python relay_server.py` en un equipo accesible por ambos usuarios. Este programa actúa como un pequeño servidor de reunión.
-   - Al iniciar en modo servidor, puedes elegir generar un código; compártelo con tu contacto.
-   - El cliente puede seleccionar "Conectarse usando un código de conexión" e introducirlo para obtener la dirección y puerto automáticamente.
-   - El código se consume tras su primer uso y evita revelar tu dirección IP directamente.
-   - El programa busca el servidor de reunión en `http://localhost:8000`; puedes cambiarlo con la variable de entorno `SC_BROKER_URL`.
+   - Ejecuta `python relay_chat_server.py` en un equipo o VPS accesible por ambos usuarios.
+   - Al iniciar la aplicación elige "Servidor" o "Cliente" y responde **Sí** cuando se pregunte por usar el relay.
+   - Si actúas como servidor se generará un código de seis dígitos; compártelo con tu contacto.
+   - El cliente selecciona también el modo relay e introduce el código para unirse a la sala.
+   - El tráfico pasa cifrado por el servidor de retransmisión sin exponer las direcciones IP.
+   - La aplicación usa por defecto `localhost:7000` como relay; cambia el host o puerto con las variables `SC_RELAY_HOST` y `SC_RELAY_PORT`.
 
 6. **Conectarse y chatear:**
 

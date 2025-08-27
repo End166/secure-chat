@@ -406,6 +406,8 @@ class SecureChatApp:
                     self.conn.close()
                 finally:
                     self.conn = None
+            # Eliminar al usuario remoto de la lista cuando la conexión termina
+            self.master.after(0, self.remove_peer_from_list)
 
     def process_incoming_messages(self) -> None:
         """Procesa mensajes de la cola y los muestra en el área de chat."""
@@ -447,6 +449,14 @@ class SecureChatApp:
         """Añade un usuario a la lista lateral."""
         if username not in self.user_list.get(0, tk.END):
             self.user_list.insert(tk.END, username)
+
+    def remove_peer_from_list(self) -> None:
+        """Elimina al usuario remoto de la lista lateral, si está presente."""
+        for i, name in enumerate(self.user_list.get(0, tk.END)):
+            if name == self.peer_username:
+                self.user_list.delete(i)
+                break
+        self.peer_username = "Amigo"
 
     # --- Voz ---
 

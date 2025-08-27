@@ -8,15 +8,19 @@ Esta aplicación es un sencillo programa de chat punto a punto diseñado para qu
 - **Comunicación cifrada**: todo el texto que viaja por la red se cifra utilizando el algoritmo **Fernet** de la biblioteca [`cryptography`](https://cryptography.io/). Para que dos usuarios puedan comunicarse, ambos deben compartir la misma clave secreta.
 - **Modo servidor/cliente**: la aplicación permite actuar como servidor (espera conexiones) o como cliente (se conecta a un servidor). Solo se necesita ejecutar un servidor y un cliente para iniciar la conversación.
 - **Compatibilidad con Windows**: el programa está escrito en Python 3 y utiliza la biblioteca estándar junto con `cryptography` y `tkinter`, por lo que puede ejecutarse en Windows. Para empaquetarlo como ejecutable de Windows se pueden usar herramientas como `pyinstaller` (no incluida en este proyecto).
+- **Chat de voz opcional**: permite enviar audio en tiempo real mediante un botón dedicado.
+- **Mensajes coloreados y entrada con sugerencia**: los mensajes del sistema, del usuario local y del remoto se muestran con colores diferentes y el campo de entrada incluye un placeholder que guía al usuario.
 
 ## Requisitos
 
 - Python 3.8 o superior.
-- Biblioteca `cryptography`. Se puede instalar con:
+- Dependencias listadas en `requirements.txt`.
+  Puede instalarlas todas con:
 
-```bash
-pip install cryptography
-```
+  ```bash
+  pip install -r requirements.txt
+  ```
+  La biblioteca `sounddevice` es opcional y solo se utiliza para el chat de voz.
 
 ## Uso
 
@@ -30,7 +34,7 @@ pip install cryptography
 2. **Instalar dependencias:**
 
    ```bash
-   pip install cryptography
+   pip install -r requirements.txt
    ```
 
 3. **Generar una clave secreta (una sola vez):**
@@ -43,13 +47,19 @@ pip install cryptography
    python secure_chat.py
    ```
 
-   La aplicación mostrará un diálogo para elegir el modo **servidor** o **cliente** y solicitará la dirección IP y el puerto correspondientes.
+   La aplicación solicitará un **nombre de usuario** y, a continuación, mostrará un diálogo para elegir el modo **servidor** o **cliente** y solicitará la dirección IP y el puerto correspondientes.
 
 5. **Conectarse y chatear:**
 
    - En el ordenador que actuará como servidor seleccione **Servidor**, elija un puerto (por defecto 5000) y pulse **Iniciar**.
    - En el ordenador que actuará como cliente seleccione **Cliente**, introduzca la dirección IP del servidor y el mismo puerto, y pulse **Conectar**.
    - Ambos usuarios pueden escribir mensajes en la parte inferior y estos aparecerán cifrados en la red y descifrados al llegar al destinatario.
+   - Con el botón **Voz** es posible iniciar o detener el envío de audio para un chat de voz sencillo. Este botón estará deshabilitado si la biblioteca `sounddevice` no está disponible.
+
+### Ejecutar en Replit
+
+El repositorio incluye los archivos `.replit` y `replit.nix` para que el proyecto se ejecute en [Replit](https://replit.com/). Al importar el repositorio se instalarán las dependencias de `requirements.txt`.
+En Replit no suele haber acceso a dispositivos de audio físicos, por lo que el chat de voz puede no funcionar y el botón **Voz** aparecerá deshabilitado.
 
 ## Seguridad
 
